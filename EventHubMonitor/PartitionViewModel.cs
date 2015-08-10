@@ -16,7 +16,6 @@ namespace EventHubMonitor
     public class PartitionViewModel : INotifyPropertyChanged
     {
         private readonly EventHubConsumerGroup _consumerGroup;
-        private readonly ISubject<int> _observableEventCount = new Subject<int>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
         private int _eventCount;
         private double _ratePerSecond;
@@ -28,7 +27,9 @@ namespace EventHubMonitor
             PartitionId = partitionId;
         }
 
-        public IObservable<int> ObservableEventCount => _observableEventCount;
+        private readonly ISubject<int> _whenEventReceived = new Subject<int>();
+        public IObservable<int> WhenEventReceived => _whenEventReceived;
+
         public string PartitionId { get; }
 
         public int EventCount
@@ -60,7 +61,7 @@ namespace EventHubMonitor
             var receiver = await _consumerGroup.CreateReceiverAsync(PartitionId, DateTime.UtcNow).ConfigureAwait(false);
             _task = ListenAsync(receiver, CancellationToken.None).ConfigureAwait(false);
 
-            _subscriptions.Add(_observableEventCount
+            _subscriptions.Add(_whenEventReceived
                 .Buffer(TimeSpan.FromSeconds(5))
                 .TimeInterval()
                 .Select(x => x.Value.Sum()/x.Interval.TotalSeconds)
@@ -76,7 +77,7 @@ namespace EventHubMonitor
                     .ConfigureAwait(false);
 
                 var count = events.Count();
-                _observableEventCount.OnNext(count);
+                _whenEventReceived.OnNext(count);
                 EventCount += count;
 
                 await Task.Yield();

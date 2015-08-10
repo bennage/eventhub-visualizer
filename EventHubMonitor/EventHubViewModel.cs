@@ -18,6 +18,7 @@ namespace EventHubMonitor
     {
         private readonly ISubject<int> _aggregatedEventCount = new Subject<int>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
+        private readonly List<Task> _listeners = new List<Task>(); 
         private double _ratePerSecond;
 
         public EventHubViewModel(string eventHubName)
@@ -25,6 +26,8 @@ namespace EventHubMonitor
             EventHubName = eventHubName;
             Partitions = new ObservableCollection<PartitionViewModel>();
         }
+
+        public string EventHubName { get; private set; }
 
         public double RatePerSecond
         {
@@ -38,9 +41,6 @@ namespace EventHubMonitor
         }
 
         public ObservableCollection<PartitionViewModel> Partitions { get; }
-        public string EventHubName { get; private set; }
-
-        public event PropertyChangedEventHandler PropertyChanged;
 
         public async Task StartAsync(EventHubClient hubClient, CancellationToken token)
         {
@@ -55,9 +55,9 @@ namespace EventHubMonitor
 
             foreach (var partition in Partitions)
             {
-                _subscriptions.Add(partition.ObservableEventCount.Subscribe(x => { _aggregatedEventCount.OnNext(x); }));
+                _subscriptions.Add(partition.WhenEventReceived.Subscribe(x => { _aggregatedEventCount.OnNext(x); }));
 
-                partition.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                _listeners.Add(partition.StartAsync(CancellationToken.None));
             }
 
             _subscriptions.Add(_aggregatedEventCount
@@ -66,6 +66,8 @@ namespace EventHubMonitor
                 .Select(x => x.Value.Sum()/x.Interval.TotalSeconds)
                 .Subscribe(rate => Dispatcher.CurrentDispatcher.Invoke(() => { RatePerSecond = rate; })));
         }
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         [NotifyPropertyChangedInvocator]
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
