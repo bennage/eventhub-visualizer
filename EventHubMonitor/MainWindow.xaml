@@ -6,7 +6,67 @@
         xmlns:local="clr-namespace:EventHubMonitor"
         mc:Ignorable="d"
         Title="MainWindow" Height="350" Width="525">
-    <Grid>
-        
-    </Grid>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto"></ColumnDefinition>
+      <ColumnDefinition Width="*"></ColumnDefinition>
+    </Grid.ColumnDefinitions>
+
+    <StackPanel Grid.Column="0" Margin="8 0">
+
+      <TextBlock Text="Meta" FontSize="24" />
+      
+      <TextBlock Text="event hub name" />
+      <TextBlock Text="{Binding EventHubName}" FontSize="24" HorizontalAlignment="Right" Margin="0 0 8 8" />
+
+      <TextBlock Text="partition count" />
+      <TextBlock Text="{Binding Partitions.Count}" FontSize="24" HorizontalAlignment="Right" Margin="0 0 8 8" />
+
+      <TextBlock Text="overall per second" />
+      <TextBlock Text="{Binding RatePerSecond, StringFormat='{}{0:#}'}" FontSize="24" HorizontalAlignment="Right" Margin="0 0 8 8" />
+    </StackPanel>
+
+    <StackPanel Grid.Column="1">
+      <TextBlock Text="Partitions" FontSize="24" />
+      <ItemsControl ItemsSource="{Binding Partitions}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel></WrapPanel>
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Grid Margin="8" Width="120" Height="120">
+              <Grid.Background>
+                <VisualBrush Stretch="None">
+                  <VisualBrush.Visual>
+                    <Border Width="200" Height="200" Padding="12">
+                      <TextBlock
+                        Opacity="0.1" FontSize="48"
+                        Text="{Binding PartitionId}" />
+                    </Border>
+
+                  </VisualBrush.Visual>
+                </VisualBrush>
+              </Grid.Background>
+              
+              <Border CornerRadius="8" BorderBrush="Black" BorderThickness="1" >
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                  <TextBlock Text="total seen" 
+                        Opacity="0.5" />
+                  <TextBlock Text="{Binding EventCount}" FontSize="24" HorizontalAlignment="Right" />
+
+                  <TextBlock Text="per second" 
+                        Opacity="0.5" />
+                  <TextBlock Text="{Binding RatePerSecond, StringFormat='{}{0:#}'}" FontSize="24" HorizontalAlignment="Right" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+  </Grid>
+
 </Window>
