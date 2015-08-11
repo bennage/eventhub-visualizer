@@ -16,7 +16,7 @@ namespace EventHubMonitor
 
     public class EventHubViewModel : INotifyPropertyChanged
     {
-        private readonly ISubject<int> _aggregatedEventCount = new Subject<int>();
+        private readonly ISubject<long> _aggregatedEventCount = new Subject<long>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
         private readonly List<Task> _listeners = new List<Task>(); 
         private double _ratePerSecond;
@@ -44,12 +44,9 @@ namespace EventHubMonitor
 
         public async Task StartAsync(EventHubClient hubClient, CancellationToken token)
         {
-            var consumerGroup = hubClient.GetDefaultConsumerGroup();
-
             var runtime = await hubClient.GetRuntimeInformationAsync();
-
             runtime.PartitionIds
-                .Select(partitionId => new PartitionViewModel(partitionId, consumerGroup))
+                .Select(partitionId => new PartitionViewModel(partitionId, hubClient))
                 .ToList()
                 .ForEach(p => Partitions.Add(p));
 

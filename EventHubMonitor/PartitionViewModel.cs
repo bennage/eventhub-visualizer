@@ -1,38 +1,33 @@
 namespace EventHubMonitor
 {
     using System;
-    using System.Collections.Generic;
     using System.ComponentModel;
-    using System.Linq;
-    using System.Reactive.Linq;
     using System.Reactive.Subjects;
     using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Windows.Threading;
     using Annotations;
     using Microsoft.ServiceBus.Messaging;
 
     public class PartitionViewModel : INotifyPropertyChanged
     {
-        private readonly EventHubConsumerGroup _consumerGroup;
-        private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
-        private int _eventCount;
+        private readonly EventHubClient _client;
+        private readonly ISubject<long> _whenEventReceived = new Subject<long>();
+        private long _eventCount;
+        private long _lastSequence;
+        private DateTime _lastTime;
         private double _ratePerSecond;
-        private object _task;
 
-        public PartitionViewModel(string partitionId, EventHubConsumerGroup consumerGroup)
+        public PartitionViewModel(string partitionId, EventHubClient client)
         {
-            _consumerGroup = consumerGroup;
+            _client = client;
             PartitionId = partitionId;
         }
 
-        private readonly ISubject<int> _whenEventReceived = new Subject<int>();
-        public IObservable<int> WhenEventReceived => _whenEventReceived;
-
+        public IObservable<long> WhenEventReceived => _whenEventReceived;
         public string PartitionId { get; }
 
-        public int EventCount
+        public long EventCount
         {
             get { return _eventCount; }
             private set
@@ -58,29 +53,36 @@ namespace EventHubMonitor
 
         public async Task StartAsync(CancellationToken token)
         {
-            var receiver = await _consumerGroup.CreateReceiverAsync(PartitionId, DateTime.UtcNow).ConfigureAwait(false);
-            _task = ListenAsync(receiver, CancellationToken.None).ConfigureAwait(false);
-
-            _subscriptions.Add(_whenEventReceived
-                .Buffer(TimeSpan.FromSeconds(5))
-                .TimeInterval()
-                .Select(x => x.Value.Sum()/x.Interval.TotalSeconds)
-                .Subscribe(rate => Dispatcher.CurrentDispatcher.Invoke(() => { RatePerSecond = rate; })));
-        }
-
-        private async Task ListenAsync(EventHubReceiver receiver, CancellationToken token)
-        {
-            while (!token.IsCancellationRequested)
-            {
-                var events = await receiver
-                    .ReceiveAsync(5000, TimeSpan.FromSeconds(3))
+            var partition = await _client.GetPartitionRuntimeInformationAsync(PartitionId)
                     .ConfigureAwait(false);
 
-                var count = events.Count();
-                _whenEventReceived.OnNext(count);
-                EventCount += count;
+            _lastSequence = partition.LastEnqueuedSequenceNumber;
+            _lastTime = partition.LastEnqueuedTimeUtc;
 
-                await Task.Yield();
+            await Task.Delay(TimeSpan.FromMilliseconds(new Random().NextDouble() * 1000), token)
+                .ConfigureAwait(false); ;
+
+            while (!token.IsCancellationRequested)
+            {
+                partition = await _client.GetPartitionRuntimeInformationAsync(PartitionId)
+                    .ConfigureAwait(false);
+
+                var deltaSequence = partition.LastEnqueuedSequenceNumber - _lastSequence;
+                var deltaTime = partition.LastEnqueuedTimeUtc - _lastTime;
+
+                _lastSequence = partition.LastEnqueuedSequenceNumber;
+                _lastTime = partition.LastEnqueuedTimeUtc;
+
+                if (deltaSequence > 0 && deltaTime.Ticks > 0)
+                {
+                    EventCount += deltaSequence;
+                    RatePerSecond = deltaSequence / deltaTime.TotalSeconds;
+
+                    _whenEventReceived.OnNext(deltaSequence);
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(3), token)
+                    .ConfigureAwait(false);
             }
         }
 
