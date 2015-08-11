@@ -10,14 +10,12 @@ namespace EventHubMonitor
     using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Threading.Tasks;
-    using System.Windows.Threading;
     using Annotations;
     using Microsoft.ServiceBus.Messaging;
 
     public class EventHubViewModel : INotifyPropertyChanged
     {
         private readonly ISubject<long> _aggregatedEventCount = new Subject<long>();
-        private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
         private readonly List<Task> _listeners = new List<Task>();
         private double _ratePerSecond;
 
@@ -52,16 +50,16 @@ namespace EventHubMonitor
 
             foreach (var partition in Partitions)
             {
-                _subscriptions.Add(partition.WhenEventReceived.Subscribe(x => { _aggregatedEventCount.OnNext(x); }));
+                partition.WhenEventReceived.Subscribe(x => { _aggregatedEventCount.OnNext(x); });
 
                 _listeners.Add(partition.StartAsync(CancellationToken.None));
             }
 
-            _subscriptions.Add(_aggregatedEventCount
+            _aggregatedEventCount
                 .Buffer(TimeSpan.FromSeconds(5))
                 .TimeInterval()
                 .Select(x => x.Value.Sum() / x.Interval.TotalSeconds)
-                .Subscribe(rate => RatePerSecond = rate));
+                .Subscribe(rate => RatePerSecond = rate);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
