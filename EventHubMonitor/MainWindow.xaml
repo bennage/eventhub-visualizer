@@ -74,8 +74,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="8"
-                              Width="120"
-                              Height="120">
+                              Width="120">
                             <Grid.Background>
                                 <VisualBrush Stretch="None">
                                     <VisualBrush.Visual>
@@ -96,14 +95,24 @@
                                     BorderThickness="1">
                                 <StackPanel VerticalAlignment="Center"
                                             HorizontalAlignment="Center">
-                                    <TextBlock Text="total seen"
+                                    <TextBlock Text="total events seen"
                                                Style="{StaticResource PartitionLabelStyle}"/>
-                                    <TextBlock Text="{Binding EventCount}"
+                                    <TextBlock Text="{Binding EventCount, StringFormat='{}{0:#,#}'}"
                                                Style="{StaticResource DisplayValueStyle}" />
 
-                                    <TextBlock Text="per second"
+                                    <TextBlock Text="events per second"
                                                Style="{StaticResource PartitionLabelStyle}" />
                                     <TextBlock Text="{Binding RatePerSecond, StringFormat='{}{0:#,#}'}"
+                                               Style="{StaticResource DisplayValueStyle}" />
+
+                                    <TextBlock Text="ingress per second"
+                                               Style="{StaticResource PartitionLabelStyle}" />
+                                    <TextBlock Text="{Binding IncomingBytesPerSecond, StringFormat='{}{0:#,#}'}"
+                                               Style="{StaticResource DisplayValueStyle}" />
+
+                                    <TextBlock Text="egress per second"
+                                               Style="{StaticResource PartitionLabelStyle}" />
+                                    <TextBlock Text="{Binding OutgoingBytesPerSecond, StringFormat='{}{0:#,#}'}"
                                                Style="{StaticResource DisplayValueStyle}" />
                                 </StackPanel>
                             </Border>

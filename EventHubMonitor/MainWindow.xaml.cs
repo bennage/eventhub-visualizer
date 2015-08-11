@@ -8,6 +8,8 @@
 
     public partial class MainWindow : Window
     {
+        private readonly string _connectionString;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -17,25 +19,29 @@
             SasKeyName = ConfigurationManager.AppSettings["EventHubSasKeyName"];
             SasKey = ConfigurationManager.AppSettings["EventHubSasKey"];
 
-            EventHub = new EventHubViewModel(EventHubPath);
+            var endpoint = ServiceBusEnvironment.CreateServiceUri("sb", EventHubNamespace, string.Empty);
+            _connectionString = ServiceBusConnectionStringBuilder.CreateUsingSharedAccessKey(endpoint, SasKeyName,
+                SasKey);
+
+            var nsm = NamespaceManager.CreateFromConnectionString(_connectionString);
+
+            EventHub = new EventHubViewModel(EventHubPath, nsm);
+
             DataContext = EventHub;
 
             Loaded += MainWindow_Loaded;
         }
 
-        public string EventHubNamespace { get; set; }
-        public string EventHubPath { get; set; }
-        public string SasKeyName { get; set; }
-        public string SasKey { get; set; }
+        public static string EventHubNamespace { get; private set; }
+        public static string EventHubPath { get; private set; }
+        public static string SasKeyName { get; private set; }
+        public static string SasKey { get; private set; }
         public EventHubViewModel EventHub { get; }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var endpoint = ServiceBusEnvironment.CreateServiceUri("sb", EventHubNamespace, string.Empty);
-            var connection = ServiceBusConnectionStringBuilder.CreateUsingSharedAccessKey(endpoint, SasKeyName, SasKey);
-
-            var hubClient = EventHubClient.CreateFromConnectionString(connection, EventHubPath);
-            EventHub.StartAsync(hubClient, CancellationToken.None).ConfigureAwait(false);
+            var client = EventHubClient.CreateFromConnectionString(_connectionString, EventHubPath);
+            EventHub.StartAsync(client, CancellationToken.None).ConfigureAwait(false);
         }
     }
 }

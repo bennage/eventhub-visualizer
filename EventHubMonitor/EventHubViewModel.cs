@@ -11,6 +11,7 @@ namespace EventHubMonitor
     using System.Threading;
     using System.Threading.Tasks;
     using Annotations;
+    using Microsoft.ServiceBus;
     using Microsoft.ServiceBus.Messaging;
 
     public class EventHubViewModel : INotifyPropertyChanged
@@ -18,11 +19,14 @@ namespace EventHubMonitor
         private readonly ISubject<long> _aggregatedEventCount = new Subject<long>();
         private readonly List<Task> _listeners = new List<Task>();
         private double _ratePerSecond;
+        private readonly NamespaceManager _nsm;
 
-        public EventHubViewModel(string eventHubName)
+        public EventHubViewModel(string eventHubName, NamespaceManager nsm)
         {
+            _nsm = nsm;
             EventHubName = eventHubName;
             Partitions = new ObservableCollection<PartitionViewModel>();
+            ConsumerGroups = new ObservableCollection<string>();
         }
 
         public string EventHubName { get; private set; }
@@ -39,12 +43,23 @@ namespace EventHubMonitor
         }
 
         public ObservableCollection<PartitionViewModel> Partitions { get; }
+        public ObservableCollection<string> ConsumerGroups { get; }
 
-        public async Task StartAsync(EventHubClient hubClient, CancellationToken token)
+        public async Task StartAsync(EventHubClient client, CancellationToken token)
         {
-            var runtime = await hubClient.GetRuntimeInformationAsync();
+            var groups = await _nsm.GetConsumerGroupsAsync(EventHubName);
+            groups.ToList()
+                .ForEach(g => ConsumerGroups.Add(g.Name));
+
+            var defaultConsumerGroup = ConsumerGroups.First();
+
+            var runtime = await client.GetRuntimeInformationAsync();
             runtime.PartitionIds
-                .Select(partitionId => new PartitionViewModel(partitionId, hubClient))
+                .Select(partitionId =>
+                {
+                    Func<Task<PartitionDescription>> f = () => _nsm.GetEventHubPartitionAsync(EventHubName, defaultConsumerGroup, partitionId);
+                    return new PartitionViewModel(partitionId, client, f);
+                })
                 .ToList()
                 .ForEach(p => Partitions.Add(p));
 
