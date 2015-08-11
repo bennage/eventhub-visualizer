@@ -65,7 +65,6 @@
         <StackPanel Grid.Column="1">
             <TextBlock Text="Partitions"
                        Style="{StaticResource HeaderStyle}" />
-            
             <ItemsControl ItemsSource="{Binding Partitions}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

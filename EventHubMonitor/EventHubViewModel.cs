@@ -18,7 +18,7 @@ namespace EventHubMonitor
     {
         private readonly ISubject<long> _aggregatedEventCount = new Subject<long>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
-        private readonly List<Task> _listeners = new List<Task>(); 
+        private readonly List<Task> _listeners = new List<Task>();
         private double _ratePerSecond;
 
         public EventHubViewModel(string eventHubName)
@@ -60,8 +60,8 @@ namespace EventHubMonitor
             _subscriptions.Add(_aggregatedEventCount
                 .Buffer(TimeSpan.FromSeconds(5))
                 .TimeInterval()
-                .Select(x => x.Value.Sum()/x.Interval.TotalSeconds)
-                .Subscribe(rate => Dispatcher.CurrentDispatcher.Invoke(() => { RatePerSecond = rate; })));
+                .Select(x => x.Value.Sum() / x.Interval.TotalSeconds)
+                .Subscribe(rate => RatePerSecond = rate));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
